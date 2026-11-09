@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  test:
+    name: Тесты
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U app -d app"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      TEST_DATABASE_URL: postgresql+asyncpg://app:app@localhost:5432/app
+      SECRET_KEY: ci-secret-key
+      DEBUG: "false"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Установить uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Установить зависимости
+        run: uv sync --frozen
+
+      - name: Проверить линтером
+        run: uv run ruff check .
+
+      - name: Прогнать тесты
+        run: uv run pytest -q
+
+  frontend:
+    name: Сборка фронтенда
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Установить Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Установить зависимости
+        working-directory: frontend
+        run: npm ci
+
+      - name: Собрать интерфейс
+        working-directory: frontend
+        run: npm run build
+
+  docker:
+    name: Сборка образа
+    runs-on: ubuntu-latest
+    needs: [test, frontend]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Собрать образ
+        run: docker build --tag tms-app:ci .
+
+      - name: Проверить образ
+        run: |
+          docker image inspect tms-app:ci --format 'user={{.Config.User}} id={{.Id}}'
+          docker run --rm tms-app:ci python -c "import src.main; print('import OK')"
+
+      - name: Проверить интерфейс в образе
+        run: |
+          docker run -d --name tms-ci -p 8000:8000 tms-app:ci
+          for attempt in $(seq 1 30); do
+            curl -fsS http://localhost:8000/health >/dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -fsS http://localhost:8000/health
+          curl -fsS http://localhost:8000/ | grep -q 'id="root"'
+          docker rm -f tms-ci

@@ -3,15 +3,20 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from src.api.routes import auth, tasks, users
 from src.core.config import get_settings
 from src.core.exceptions import AppError
 
 settings = get_settings()
+
+# Собранный React-интерфейс (frontend/dist) кладётся в static/ при сборке образа.
+STATIC_DIR = Path(__file__).resolve().parents[1] / "static"
 
 # Уведомления и аудит пишутся в stdout через логгеры приложения.
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -56,3 +61,9 @@ async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
 async def health() -> dict[str, str]:
     """Возвращает `ok`, если сервис запущен."""
     return {"status": "ok"}
+
+
+# Интерфейс монтируется последним: API-маршруты выше имеют приоритет.
+# SPA использует HashRouter, поэтому серверный fallback на index.html не нужен.
+if STATIC_DIR.is_dir():
+    app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="frontend")

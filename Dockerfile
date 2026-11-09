@@ -1,3 +1,15 @@
+# --- сборка фронтенда ---
+FROM node:22-alpine AS frontend
+
+WORKDIR /frontend
+
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+
+COPY frontend/ ./
+RUN npm run build
+
+# --- приложение ---
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -15,6 +27,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY alembic.ini ./
 COPY alembic ./alembic
 COPY src ./src
+
+# Статика React-приложения раздаётся тем же сервером по "/".
+COPY --from=frontend /frontend/dist ./static
 
 USER appuser
 EXPOSE 8000

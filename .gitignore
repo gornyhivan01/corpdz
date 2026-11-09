@@ -1,4 +1,4 @@
-﻿# Окружение и секреты
+# Окружение и секреты
 .env
 .venv/
 venv/
@@ -18,3 +18,8 @@ htmlcov/
 
 # Прочее
 *.log
+
+# Фронтенд
+frontend/node_modules/
+frontend/dist/
+static/

@@ -12,3 +12,6 @@ htmlcov
 tests
 docs
 README.md
+frontend/node_modules
+frontend/dist
+static
