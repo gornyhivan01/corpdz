@@ -27,6 +27,15 @@ class UserRead(BaseModel):
     created_at: datetime
 
 
+class UserPage(BaseModel):
+    """Страница списка пользователей."""
+
+    total: int
+    limit: int
+    offset: int
+    items: list[UserRead]
+
+
 class RoleUpdate(BaseModel):
     """Новая роль пользователя."""
 

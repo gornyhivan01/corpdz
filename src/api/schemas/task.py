@@ -27,7 +27,7 @@ class TaskPriority(str, Enum):
 class TaskCreate(BaseModel):
     """Данные для создания задачи."""
 
-    title: str = Field(min_length=1, max_length=200, description="Заголовок задачи")
+    title: str = Field(min_length=1, max_length=200, description="Заголовок")
     description: str | None = Field(default=None, description="Описание")
     status: TaskStatus = Field(default=TaskStatus.PENDING, description="Статус")
     priority: TaskPriority = Field(default=TaskPriority.MEDIUM, description="Приоритет")
@@ -35,7 +35,7 @@ class TaskCreate(BaseModel):
 
 
 class TaskUpdate(BaseModel):
-    """Данные для обновления задачи (все поля опциональны)."""
+    """Обновление задачи: все поля опциональны."""
 
     title: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = None
@@ -58,3 +58,12 @@ class TaskRead(BaseModel):
     user_id: int
     created_at: datetime
     updated_at: datetime
+
+
+class TaskPage(BaseModel):
+    """Страница списка задач."""
+
+    total: int
+    limit: int
+    offset: int
+    items: list[TaskRead]

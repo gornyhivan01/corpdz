@@ -17,14 +17,10 @@ cp .env.example .env
 docker compose up -d
 ```
 
-Что произойдёт: поднимутся PostgreSQL, Redis и приложение, применятся миграции
-Alembic (`alembic upgrade head`), сервис будет доступен на порту 8000.
+Поднимутся PostgreSQL, Redis и приложение, применятся миграции Alembic.
+Сервис: <http://localhost:8000>, Swagger UI: <http://localhost:8000/docs>.
 
-- Swagger UI — <http://localhost:8000/docs>
-- Схема OpenAPI — <http://localhost:8000/openapi.json>
-- Проверка живости — <http://localhost:8000/health>
-
-Остановить: `docker compose down` (с удалением данных — `docker compose down -v`).
+Остановить: `docker compose down` (с данными — `docker compose down -v`).
 
 ## Запуск без Docker
 
@@ -35,53 +31,81 @@ uv run alembic upgrade head
 uv run uvicorn src.main:app --reload
 ```
 
+## Эндпоинты
+
+| Метод | Путь | Доступ | Назначение |
+|---|---|---|---|
+| GET | `/health` | публичный | Проверка живости |
+| POST | `/auth/register` | публичный | Регистрация (роль USER) |
+| POST | `/auth/login` | публичный | Вход, выдача JWT |
+| GET | `/auth/profile` | авторизованный | Профиль текущего пользователя |
+| GET | `/tasks` | авторизованный | Список задач (пагинация, фильтры) |
+| POST | `/tasks` | авторизованный | Создать задачу + email-уведомление |
+| GET | `/tasks/{task_id}` | авторизованный | Задача по id |
+| PUT | `/tasks/{task_id}` | авторизованный | Обновить задачу |
+| DELETE | `/tasks/{task_id}` | авторизованный | Удалить задачу |
+| GET | `/admin/users` | ADMIN | Список пользователей |
+| PUT | `/admin/users/{user_id}/role` | ADMIN | Сменить роль |
+
+**Права:** пользователь видит и меняет только свои задачи; администратор —
+все задачи и управление ролями.
+
+## Примеры запросов
+
+```bash
+# Регистрация
+curl -X POST http://localhost:8000/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"email": "user@example.com", "password": "secure123", "name": "Иван Иванов"}'
+
+# Вход (сохраняем токен)
+TOKEN=$(curl -s -X POST http://localhost:8000/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email": "user@example.com", "password": "secure123"}' | python -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
+
+# Создание задачи
+curl -X POST http://localhost:8000/tasks \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"title": "Разработать API", "description": "Создать REST API", "priority": "high", "deadline": "2026-12-01T00:00:00"}'
+
+# Список с фильтром и пагинацией
+curl "http://localhost:8000/tasks?status=pending&priority=high&limit=10&offset=0" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
 ## Структура
 
 ```
 src/
-  api/
-    dependencies.py       # зависимости FastAPI (сессия БД, текущий пользователь)
-    routes/               # auth.py, tasks.py, users.py
-    schemas/              # Pydantic-схемы
-  core/                   # config.py, security.py, database.py
-  models/                 # user.py, task.py
-  repositories/           # доступ к данным
-  services/               # бизнес-логика
-  utils/unit_of_work.py   # единица работы
-  main.py                 # создание приложения и /health
-alembic/                  # миграции
-tests/                    # тесты (появятся на этапе 3)
-docker-compose.yml
-Dockerfile
-requirements.txt
+  api/            # маршруты, схемы, зависимости
+  core/           # config, security, database, exceptions
+  models/         # User, Task
+  repositories/   # доступ к данным
+  services/       # бизнес-логика, уведомления
+  utils/          # unit_of_work
+  main.py
+alembic/          # миграции
+tests/            # тесты (этап 3)
 ```
-
-## Эндпоинты
-
-Сейчас реализованы:
-
-| Метод | Путь | Назначение |
-|---|---|---|
-| GET | `/health` | Проверка живости |
-
-В разработке (этап 2):
-
-| Метод | Путь | Доступ |
-|---|---|---|
-| POST | `/auth/register` | публичный |
-| POST | `/auth/login` | публичный |
-| GET | `/auth/profile` | авторизованный |
-| GET/POST | `/tasks` | авторизованный |
-| GET/PUT/DELETE | `/tasks/{task_id}` | авторизованный |
-| GET | `/admin/users` | ADMIN |
-| PUT | `/admin/users/{user_id}/role` | ADMIN |
 
 ## Переменные окружения
 
 | Переменная | Назначение |
 |---|---|
-| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | учётные данные PostgreSQL для compose |
-| `DATABASE_URL` | строка подключения `postgresql+asyncpg://…` |
-| `REDIS_URL` | адрес Redis |
-| `SECRET_KEY` | секрет подписи JWT (обязательно заменить в проде) |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | PostgreSQL для compose |
+| `DATABASE_URL` | `postgresql+asyncpg://…` |
+| `REDIS_URL` | адрес Redis (задел под Celery) |
+| `SECRET_KEY` | секрет подписи JWT — заменить в проде |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | срок жизни токена |
+## Первый администратор
+
+Регистрация всегда создаёт пользователя с ролью `USER`. Первого администратора
+нужно назначить вручную — через SQL:
+
+```bash
+docker compose exec db psql -U app -d app \
+  -c "UPDATE users SET role='ADMIN' WHERE email='admin@example.com';"
+```
+
+После этого вход тем же email даёт админские права (`GET /admin/users`,
+`PUT /admin/users/{id}/role`).
