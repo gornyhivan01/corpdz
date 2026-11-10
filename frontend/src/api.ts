@@ -1,4 +1,13 @@
-import type { Page, Role, Task, TaskPayload, TaskQuery, TokenResponse, User } from "./types";
+import type {
+  Page,
+  Role,
+  Task,
+  TaskPayload,
+  TaskQuery,
+  TokenResponse,
+  User,
+  UserPayload,
+} from "./types";
 
 const TOKEN_KEY = "tms_token";
 
@@ -110,6 +119,7 @@ export const api = {
         priority: query.priority,
         deadline_from: query.deadline_from,
         deadline_to: query.deadline_to,
+        archived: query.archived ? "true" : undefined,
         limit: query.limit,
         offset: query.offset,
       })}`,
@@ -130,6 +140,14 @@ export const api = {
 
   users(limit: number, offset: number): Promise<Page<User>> {
     return request<Page<User>>(`/admin/users${buildQuery({ limit, offset })}`);
+  },
+
+  createUser(payload: UserPayload): Promise<User> {
+    return request<User>("/admin/users", { method: "POST", body: JSON.stringify(payload) });
+  },
+
+  deleteUser(id: number): Promise<void> {
+    return request<void>(`/admin/users/${id}`, { method: "DELETE" });
   },
 
   setRole(id: number, role: Role): Promise<User> {

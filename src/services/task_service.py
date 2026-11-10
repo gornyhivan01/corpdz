@@ -41,6 +41,7 @@ class TaskService:
         priority: str | None = None,
         deadline_from: datetime | None = None,
         deadline_to: datetime | None = None,
+        archived: bool = False,
         limit: int = 20,
         offset: int = 0,
     ) -> tuple[list[Task], int]:
@@ -51,6 +52,7 @@ class TaskService:
             priority=priority,
             deadline_from=deadline_from,
             deadline_to=deadline_to,
+            archived=archived,
             limit=limit,
             offset=offset,
         )
@@ -60,6 +62,7 @@ class TaskService:
             priority=priority,
             deadline_from=deadline_from,
             deadline_to=deadline_to,
+            archived=archived,
         )
         return items, total
 

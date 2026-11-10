@@ -17,7 +17,9 @@ export interface Task {
   status: TaskStatus;
   priority: TaskPriority;
   deadline: string | null;
-  user_id: number;
+  user_id: number | null;
+  archived_at: string | null;
+  archived_owner_email: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -48,6 +50,14 @@ export interface TaskQuery {
   priority?: TaskPriority | "";
   deadline_from?: string;
   deadline_to?: string;
+  archived?: boolean;
   limit: number;
   offset: number;
+}
+
+export interface UserPayload {
+  email: string;
+  password: string;
+  name: string;
+  role: Role;
 }

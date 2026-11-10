@@ -40,3 +40,17 @@ class RoleUpdate(BaseModel):
     """Новая роль пользователя."""
 
     role: UserRole = Field(description="Роль: USER или ADMIN")
+
+
+class UserCreate(BaseModel):
+    """Данные для создания пользователя администратором."""
+
+    email: EmailStr = Field(description="Email", examples=["user@example.com"])
+    password: str = Field(
+        min_length=8,
+        max_length=72,
+        description="Пароль (8–72 символа; ограничение bcrypt)",
+        examples=["secure123"],
+    )
+    name: str = Field(min_length=1, max_length=200, description="Имя", examples=["Иван Иванов"])
+    role: UserRole = Field(default=UserRole.USER, description="Роль нового пользователя")

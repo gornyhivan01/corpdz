@@ -55,7 +55,13 @@ class TaskRead(BaseModel):
     status: TaskStatus
     priority: TaskPriority
     deadline: datetime | None
-    user_id: int
+    user_id: int | None
+    archived_at: datetime | None = Field(
+        default=None, description="Когда задача попала в архив (None — активна)"
+    )
+    archived_owner_email: str | None = Field(
+        default=None, description="Email владельца на момент архивации"
+    )
     created_at: datetime
     updated_at: datetime
 

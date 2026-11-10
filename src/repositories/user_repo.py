@@ -35,6 +35,19 @@ class UserRepository:
     async def count(self) -> int:
         return await self._session.scalar(select(func.count()).select_from(User)) or 0
 
+    async def count_admins(self) -> int:
+        """Сколько администраторов осталось (нужно перед удалением)."""
+        return (
+            await self._session.scalar(
+                select(func.count()).select_from(User).where(User.role == UserRole.ADMIN.value)
+            )
+            or 0
+        )
+
+    async def delete(self, user: User) -> None:
+        await self._session.delete(user)
+        await self._session.flush()
+
     async def set_role(self, user: User, role: UserRole) -> User:
         user.role = role.value
         await self._session.flush()

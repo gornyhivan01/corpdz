@@ -56,9 +56,15 @@ class Task(Base):
         server_default=TaskPriority.MEDIUM.value,
     )
     deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    # Владелец может отсутствовать: при удалении пользователя задача уходит в архив.
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    # Архив: задачи удалённых пользователей не теряются, а помечаются здесь.
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    archived_owner_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -66,4 +72,4 @@ class Task(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
-    owner: Mapped[User] = relationship(back_populates="tasks")
+    owner: Mapped[User | None] = relationship(back_populates="tasks")

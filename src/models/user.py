@@ -39,4 +39,6 @@ class User(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    tasks: Mapped[list[Task]] = relationship(back_populates="owner", cascade="all, delete-orphan")
+    # Задачи не удаляются вместе с пользователем: их архивирует сервис,
+    # а FK с ON DELETE SET NULL обнуляет владельца.
+    tasks: Mapped[list[Task]] = relationship(back_populates="owner", passive_deletes=True)

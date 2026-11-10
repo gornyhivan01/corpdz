@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 import { api, errorMessage } from "../api";
+import { useAuth } from "../auth";
 import type { Page, Task, TaskPriority, TaskStatus } from "../types";
 
 const STATUS_LABELS: Record<TaskStatus, string> = {
@@ -63,6 +64,9 @@ function formatDateTime(iso: string | null): string {
 }
 
 export function TasksPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+  const [showArchive, setShowArchive] = useState(false);
   const [page, setPage] = useState<Page<Task> | null>(null);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [offset, setOffset] = useState(0);
@@ -83,6 +87,7 @@ export function TasksPage() {
         priority: filters.priority,
         deadline_from: toIso(filters.deadlineFrom),
         deadline_to: toIso(filters.deadlineTo),
+        archived: isAdmin && showArchive,
         limit: PAGE_SIZE,
         offset,
       });
@@ -92,7 +97,7 @@ export function TasksPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters, offset]);
+  }, [filters, offset, isAdmin, showArchive]);
 
   useEffect(() => {
     void load();
@@ -186,12 +191,32 @@ export function TasksPage() {
     <section className="page">
       <div className="page-head">
         <div>
-          <h1 className="page-title">Задачи</h1>
-          <p className="page-subtitle">Всего задач: {total}</p>
+          <h1 className="page-title">{showArchive ? "Архив задач" : "Задачи"}</h1>
+          <p className="page-subtitle">
+            {showArchive
+              ? `Задачи удалённых пользователей: ${total}`
+              : `Всего задач: ${total}`}
+          </p>
         </div>
-        <button className="button primary" onClick={openCreate} type="button">
-          Новая задача
-        </button>
+        <div className="page-actions">
+          {isAdmin && (
+            <button
+              className={showArchive ? "button" : "button ghost"}
+              type="button"
+              onClick={() => {
+                setShowArchive((current) => !current);
+                setOffset(0);
+              }}
+            >
+              {showArchive ? "Активные задачи" : "Архив"}
+            </button>
+          )}
+          {!showArchive && (
+            <button className="button primary" onClick={openCreate} type="button">
+              Новая задача
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="card filters">
@@ -253,8 +278,12 @@ export function TasksPage() {
           <p className="muted">Загрузка…</p>
         ) : page !== null && page.items.length === 0 ? (
           <div className="empty">
-            <p>Задач нет</p>
-            <p className="muted">Создайте первую задачу — она появится здесь.</p>
+            <p>{showArchive ? "Архив пуст" : "Задач нет"}</p>
+            <p className="muted">
+              {showArchive
+                ? "Сюда попадают задачи пользователей после удаления их учётных записей."
+                : "Создайте первую задачу — она появится здесь."}
+            </p>
           </div>
         ) : (
           <table className="table">
@@ -263,7 +292,7 @@ export function TasksPage() {
                 <th>Задача</th>
                 <th>Статус</th>
                 <th>Приоритет</th>
-                <th>Дедлайн</th>
+                <th>{showArchive ? "Владелец" : "Дедлайн"}</th>
                 <th>Обновлена</th>
                 <th />
               </tr>
@@ -283,19 +312,33 @@ export function TasksPage() {
                       {PRIORITY_LABELS[task.priority]}
                     </span>
                   </td>
-                  <td>{formatDateTime(task.deadline)}</td>
+                  <td>
+                    {showArchive
+                      ? (task.archived_owner_email ?? "—")
+                      : formatDateTime(task.deadline)}
+                  </td>
                   <td>{formatDateTime(task.updated_at)}</td>
                   <td className="row-actions">
-                    <button className="button small" type="button" onClick={() => openEdit(task)}>
-                      Изменить
-                    </button>
-                    <button
-                      className="button small danger"
-                      type="button"
-                      onClick={() => void removeTask(task)}
-                    >
-                      Удалить
-                    </button>
+                    {showArchive ? (
+                      <span className="muted">в архиве с {formatDateTime(task.archived_at)}</span>
+                    ) : (
+                      <>
+                        <button
+                          className="button small"
+                          type="button"
+                          onClick={() => openEdit(task)}
+                        >
+                          Изменить
+                        </button>
+                        <button
+                          className="button small danger"
+                          type="button"
+                          onClick={() => void removeTask(task)}
+                        >
+                          Удалить
+                        </button>
+                      </>
+                    )}
                   </td>
                 </tr>
               ))}

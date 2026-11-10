@@ -159,6 +159,12 @@ a:hover {
   font-size: 14px;
 }
 
+.page-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
 .card {
   background: var(--surface);
   border: 1px solid var(--border);

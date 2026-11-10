@@ -35,3 +35,9 @@ class ConflictError(AppError):
     """Конфликт данных (например, занятый email)."""
 
     status_code = 409
+
+
+class BadRequestError(AppError):
+    """Недопустимая операция (например, удаление последнего администратора)."""
+
+    status_code = 400

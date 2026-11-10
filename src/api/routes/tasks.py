@@ -16,6 +16,8 @@ from src.api.schemas.task import (
     TaskStatus,
     TaskUpdate,
 )
+from src.core.exceptions import ForbiddenError
+from src.models.user import UserRole
 from src.services.notification import send_task_created_email
 from src.services.task_service import TaskService
 
@@ -33,16 +35,23 @@ async def list_tasks(
     priority: Annotated[TaskPriority | None, Query()] = None,
     deadline_from: Annotated[datetime | None, Query()] = None,
     deadline_to: Annotated[datetime | None, Query()] = None,
+    archived: Annotated[
+        bool, Query(description="Показать архив задач удалённых пользователей")
+    ] = False,
     limit: Limit = 20,
     offset: Offset = 0,
 ) -> TaskPage:
-    """Пользователь видит свои задачи, ADMIN — все."""
+    """Пользователь видит свои задачи, ADMIN — все; архив доступен только ADMIN."""
+    if archived and current_user.role != UserRole.ADMIN.value:
+        raise ForbiddenError("Недостаточно прав")
+
     items, total = await TaskService(session).list(
         user=current_user,
         status=status_filter.value if status_filter else None,
         priority=priority.value if priority else None,
         deadline_from=deadline_from,
         deadline_to=deadline_to,
+        archived=archived,
         limit=limit,
         offset=offset,
     )
