@@ -8,9 +8,11 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
       POSTGRES_DB: ${POSTGRES_DB:-app}
     ports:
-      - "5432:5432"
+      # Только localhost: наружу база не публикуется (важно на публичной ВМ).
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-app} -d ${POSTGRES_DB:-app}"]
       interval: 5s
@@ -20,7 +22,8 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -36,6 +39,7 @@ services:
       REDIS_URL: redis://redis:6379/0
     ports:
       - "8000:8000"
+    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
